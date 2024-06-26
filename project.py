@@ -45,10 +45,15 @@ class Disorder(Fact):
     label = Field(str, mandatory=True)
     number_of_asked_question = Field(int, default=0)
 
+class Diagnosed(Fact):
+    isDiagnosed = Field(bool, mandatory=True, default=False)
+
 class MyKnowledgeEngine(KnowledgeEngine):
     def __init__(self):
         super().__init__()
-        self.display_intro = True
+        self.did_sus = False
+        self.did_prob = False
+        self.sus_list = []
         self.question_number = 0
         self.super_certainty = 1.0
         self.chars = []
@@ -56,6 +61,9 @@ class MyKnowledgeEngine(KnowledgeEngine):
     
     @DefFacts()
     def initialize(self):
+        # Not diagnosed yet
+        yield Diagnosed(isDiagnosed=False)
+        # All the disorders 
         yield Disorder(label="Dissociative Disorders")
         yield Disorder(label="Schizophrenia")
         yield Disorder(label="Bipolar Disorder")
@@ -70,7 +78,6 @@ class MyKnowledgeEngine(KnowledgeEngine):
         yield Disorder(label="ASPD (Antisocial Personality Disorder)")
         yield Disorder(label="Borderline Personality Disorder")
         yield Disorder(label="Narcissistic Personality Disorder")
-
         # Dissociative Disorders
         yield Characteristic(id=1, label='Loss of identity', significance=0.0)
         yield Characteristic(id=2, label='Acting without awareness and forgetting actions', significance=0.0)
@@ -2170,9 +2177,10 @@ class MyKnowledgeEngine(KnowledgeEngine):
         AS.disorder_instance << Disorder(label=MATCH.disorder_name, number_of_asked_question=MATCH.num_asked),
         TEST(lambda num_asked: num_asked < 2),
         AS.question_instance << Question(id=MATCH.id, content=MATCH.question_content, disorder=MATCH.disorder_name, characteristics=MATCH.characteristics, isAsked=MATCH.isAsked),
-        TEST(lambda isAsked: not isAsked)
+        Diagnosed(isDiagnosed=MATCH.isDiagnosed),
+        TEST(lambda isAsked, isDiagnosed: not isAsked and not isDiagnosed)
     )
-    def ask_two_questions_from_each_disorder(self, disorder_instance, num_asked, question_instance, question_content, characteristics):
+    def ask_two_questions_from_each_disorder(self, disorder_instance, disorder_name, num_asked, question_instance, question_content, characteristics):
         self.is_main_question = False
         self.ask(question_content)
         self.chars = characteristics
@@ -2194,9 +2202,13 @@ class MyKnowledgeEngine(KnowledgeEngine):
         AS.disorder_instance << Disorder(label=MATCH.disorder_name, number_of_asked_question=MATCH.num_asked),
         TEST(lambda num_asked, disorder_name: num_asked < 5 and disorder_name == 'Dissociative Disorders'),
         AS.question_instance << Question(id=MATCH.id, content=MATCH.question_content, disorder=MATCH.disorder_name, characteristics=MATCH.characteristics, isAsked=MATCH.isAsked),
-        TEST(lambda isAsked: not isAsked)
+        Diagnosed(isDiagnosed=MATCH.isDiagnosed),
+        TEST(lambda isAsked, isDiagnosed: not isAsked and not isDiagnosed)
     )
-    def little_sus_about_Dissociative_Disorders(self, disorder_instance, num_asked, question_instance, question_content, characteristics):
+    def little_sus_about_Dissociative_Disorders(self, disorder_instance, disorder_name, num_asked, question_instance, question_content, characteristics):
+        self.did_sus = True
+        if disorder_name not in self.sus_list:
+            self.sus_list.append(disorder_name)
         self.ask(question_content)
         self.chars = characteristics
         # Set the question as asked
@@ -2214,9 +2226,11 @@ class MyKnowledgeEngine(KnowledgeEngine):
         AS.disorder_instance << Disorder(label=MATCH.disorder_name, number_of_asked_question=MATCH.num_asked),
         TEST(lambda disorder_name: disorder_name == 'Dissociative Disorders'),
         AS.question_instance << Question(id=MATCH.id, content=MATCH.question_content, disorder=MATCH.disorder_name, characteristics=MATCH.characteristics, isAsked=MATCH.isAsked),
-        TEST(lambda isAsked: not isAsked)
+        Diagnosed(isDiagnosed=MATCH.isDiagnosed),
+        TEST(lambda isAsked, isDiagnosed: not isAsked and not isDiagnosed)
     )
-    def real_sus_about_Dissociative_Disorders(self, disorder_instance, num_asked, question_instance, question_content, characteristics):
+    def real_sus_about_Dissociative_Disorders(self, disorder_instance, disorder_name, num_asked, question_instance, question_content, characteristics):
+        self.did_prob = True
         self.ask(question_content)
         self.chars = characteristics
         # Set the question as asked
@@ -2231,10 +2245,12 @@ class MyKnowledgeEngine(KnowledgeEngine):
         Characteristic(label=L('Memory loss'), significance=GE(0.5)),
         Characteristic(label=L('Multiple personalities'), significance=GE(0.65)),
         Characteristic(label=L('Daily life problems'), significance=GE(0.5)),
+        AS.diagnosed_instance << Diagnosed(isDiagnosed=L(False))
     )
-    def it_is_Dissociative_Disorders(self):
+    def it_is_Dissociative_Disorders(self, diagnosed_instance):
         print('you have Dissociative Disorders')
         self.result('you have Dissociative Disorders')
+        self.modify(diagnosed_instance, isDiagnosed=True)
         self.halt()
     
     ##################################################################################################
@@ -2248,9 +2264,13 @@ class MyKnowledgeEngine(KnowledgeEngine):
         AS.disorder_instance << Disorder(label=MATCH.disorder_name, number_of_asked_question=MATCH.num_asked),
         TEST(lambda num_asked, disorder_name: num_asked < 5 and disorder_name == 'Schizophrenia'),
         AS.question_instance << Question(id=MATCH.id, content=MATCH.question_content, disorder=MATCH.disorder_name, characteristics=MATCH.characteristics, isAsked=MATCH.isAsked),
-        TEST(lambda isAsked: not isAsked)
+        Diagnosed(isDiagnosed=MATCH.isDiagnosed),
+        TEST(lambda isAsked, isDiagnosed: not isAsked and not isDiagnosed)
     )
-    def little_sus_about_Schizophrenia(self, disorder_instance, num_asked, question_instance, question_content, characteristics):
+    def little_sus_about_Schizophrenia(self, disorder_instance, disorder_name, num_asked, question_instance, question_content, characteristics):
+        self.did_sus = True
+        if disorder_name not in self.sus_list:
+            self.sus_list.append(disorder_name)
         self.ask(question_content)
         self.chars = characteristics
         # Set the question as askedy
@@ -2268,9 +2288,11 @@ class MyKnowledgeEngine(KnowledgeEngine):
         AS.disorder_instance << Disorder(label=MATCH.disorder_name, number_of_asked_question=MATCH.num_asked),
         TEST(lambda disorder_name: disorder_name == 'Schizophrenia'),
         AS.question_instance << Question(id=MATCH.id, content=MATCH.question_content, disorder=MATCH.disorder_name, characteristics=MATCH.characteristics, isAsked=MATCH.isAsked),
-        TEST(lambda isAsked: not isAsked)
+        Diagnosed(isDiagnosed=MATCH.isDiagnosed),
+        TEST(lambda isAsked, isDiagnosed: not isAsked and not isDiagnosed)
     )
-    def real_sus_about_Schizophrenia(self, disorder_instance, num_asked, question_instance, question_content, characteristics):
+    def real_sus_about_Schizophrenia(self, disorder_instance, disorder_name, num_asked, question_instance, question_content, characteristics):
+        self.did_prob = True
         self.ask(question_content)
         self.chars = characteristics
         # Set the question as asked
@@ -2286,10 +2308,12 @@ class MyKnowledgeEngine(KnowledgeEngine):
         Characteristic(label=L('Emotional coldness or detachment'), significance=GE(0.6)),
         Characteristic(label=L('Mood fluctuations'), significance=GE(0.5)),
         Characteristic(label=L('Memory loss'), significance=GE(0.5)),
+        AS.diagnosed_instance << Diagnosed(isDiagnosed=L(False))
     )
-    def it_is_Schizophrenia(self):
+    def it_is_Schizophrenia(self, diagnosed_instance):
         print('you have Schizophrenia')
         self.result('you have Schizophrenia')
+        self.modify(diagnosed_instance, isDiagnosed=True)
         self.halt()
 
     ##################################################################################################
@@ -2302,9 +2326,13 @@ class MyKnowledgeEngine(KnowledgeEngine):
         AS.disorder_instance << Disorder(label=MATCH.disorder_name, number_of_asked_question=MATCH.num_asked),
         TEST(lambda num_asked, disorder_name: num_asked < 5 and disorder_name == 'Bipolar Disorder'),
         AS.question_instance << Question(id=MATCH.id, content=MATCH.question_content, disorder=MATCH.disorder_name, characteristics=MATCH.characteristics, isAsked=MATCH.isAsked),
-        TEST(lambda isAsked: not isAsked)
+        Diagnosed(isDiagnosed=MATCH.isDiagnosed),
+        TEST(lambda isAsked, isDiagnosed: not isAsked and not isDiagnosed)
     )
-    def little_sus_about_Bipolar_Disorder(self, disorder_instance, num_asked, question_instance, question_content, characteristics):
+    def little_sus_about_Bipolar_Disorder(self, disorder_instance, disorder_name, num_asked, question_instance, question_content, characteristics):
+        self.did_sus = True
+        if disorder_name not in self.sus_list:
+            self.sus_list.append(disorder_name)
         self.ask(question_content)
         self.chars = characteristics
         # Set the question as askedy
@@ -2322,9 +2350,11 @@ class MyKnowledgeEngine(KnowledgeEngine):
         AS.disorder_instance << Disorder(label=MATCH.disorder_name, number_of_asked_question=MATCH.num_asked),
         TEST(lambda disorder_name: disorder_name == 'Bipolar Disorder'),
         AS.question_instance << Question(id=MATCH.id, content=MATCH.question_content, disorder=MATCH.disorder_name, characteristics=MATCH.characteristics, isAsked=MATCH.isAsked),
-        TEST(lambda isAsked: not isAsked)
+        Diagnosed(isDiagnosed=MATCH.isDiagnosed),
+        TEST(lambda isAsked, isDiagnosed: not isAsked and not isDiagnosed)
     )
-    def real_sus_about_Bipolar_Disorder(self, disorder_instance, num_asked, question_instance, question_content, characteristics):
+    def real_sus_about_Bipolar_Disorder(self, disorder_instance, disorder_name, num_asked, question_instance, question_content, characteristics):
+        self.did_prob = True
         self.ask(question_content)
         self.chars = characteristics
         # Set the question as asked
@@ -2349,10 +2379,12 @@ class MyKnowledgeEngine(KnowledgeEngine):
         Characteristic(label=L('Insomnia'), significance=GE(0.55)),
         Characteristic(label=L('Loss of appetite and weight'), significance=GE(0.55)),
         Characteristic(label=L('Distractions and irrelevant thoughts'), significance=GE(0.55)),
+        AS.diagnosed_instance << Diagnosed(isDiagnosed=L(False))
     )
-    def it_is_Bipolar_Disorder(self):
+    def it_is_Bipolar_Disorder(self, diagnosed_instance):
         print('you have Bipolar Disorder')
         self.result('you have Bipolar Disorder')
+        self.modify(diagnosed_instance, isDiagnosed=True)
         self.halt()
     
     ##################################################################################################
@@ -2367,9 +2399,13 @@ class MyKnowledgeEngine(KnowledgeEngine):
         AS.disorder_instance << Disorder(label=MATCH.disorder_name, number_of_asked_question=MATCH.num_asked),
         TEST(lambda num_asked, disorder_name: num_asked < 5 and disorder_name == 'Depressive Disorders'),
         AS.question_instance << Question(id=MATCH.id, content=MATCH.question_content, disorder=MATCH.disorder_name, characteristics=MATCH.characteristics, isAsked=MATCH.isAsked),
-        TEST(lambda isAsked: not isAsked)
+        Diagnosed(isDiagnosed=MATCH.isDiagnosed),
+        TEST(lambda isAsked, isDiagnosed: not isAsked and not isDiagnosed)
     )
-    def little_sus_about_Depressive_Disorders(self, disorder_instance, num_asked, question_instance, question_content, characteristics):
+    def little_sus_about_Depressive_Disorders(self, disorder_instance, disorder_name, num_asked, question_instance, question_content, characteristics):
+        self.did_sus = True
+        if disorder_name not in self.sus_list:
+            self.sus_list.append(disorder_name)
         self.ask(question_content)
         self.chars = characteristics
         # Set the question as askedy
@@ -2387,9 +2423,11 @@ class MyKnowledgeEngine(KnowledgeEngine):
         AS.disorder_instance << Disorder(label=MATCH.disorder_name, number_of_asked_question=MATCH.num_asked),
         TEST(lambda disorder_name: disorder_name == 'Depressive Disorders'),
         AS.question_instance << Question(id=MATCH.id, content=MATCH.question_content, disorder=MATCH.disorder_name, characteristics=MATCH.characteristics, isAsked=MATCH.isAsked),
-        TEST(lambda isAsked: not isAsked)
+        Diagnosed(isDiagnosed=MATCH.isDiagnosed),
+        TEST(lambda isAsked, isDiagnosed: not isAsked and not isDiagnosed)
     )
-    def real_sus_about_Depressive_Disorders(self, disorder_instance, num_asked, question_instance, question_content, characteristics):
+    def real_sus_about_Depressive_Disorders(self, disorder_instance, disorder_name, num_asked, question_instance, question_content, characteristics):
+        self.did_prob = True
         self.ask(question_content)
         self.chars = characteristics
         # Set the question as asked
@@ -2409,10 +2447,12 @@ class MyKnowledgeEngine(KnowledgeEngine):
         Characteristic(label=L('Low self-worth'), significance=GE(0.5)),
         Characteristic(label=L('Feelings of guilt'), significance=GE(0.5)),
         Characteristic(label=L('Life problems'), significance=GE(0.5)),
+        AS.diagnosed_instance << Diagnosed(isDiagnosed=L(False))
     )
-    def it_is_Depressive_Disorders(self):
+    def it_is_Depressive_Disorders(self, diagnosed_instance):
         print('you have Depressive Disorders')
         self.result('you have Depressive Disorders')
+        self.modify(diagnosed_instance, isDiagnosed=True)
         self.halt()
     
     ##################################################################################################
@@ -2425,9 +2465,13 @@ class MyKnowledgeEngine(KnowledgeEngine):
         AS.disorder_instance << Disorder(label=MATCH.disorder_name, number_of_asked_question=MATCH.num_asked),
         TEST(lambda num_asked, disorder_name: num_asked < 5 and disorder_name == 'ADHD'),
         AS.question_instance << Question(id=MATCH.id, content=MATCH.question_content, disorder=MATCH.disorder_name, characteristics=MATCH.characteristics, isAsked=MATCH.isAsked),
-        TEST(lambda isAsked: not isAsked)
+        Diagnosed(isDiagnosed=MATCH.isDiagnosed),
+        TEST(lambda isAsked, isDiagnosed: not isAsked and not isDiagnosed)
     )
-    def little_sus_about_ADHD(self, disorder_instance, num_asked, question_instance, question_content, characteristics):
+    def little_sus_about_ADHD(self, disorder_instance, disorder_name, num_asked, question_instance, question_content, characteristics):
+        self.did_sus = True
+        if disorder_name not in self.sus_list:
+            self.sus_list.append(disorder_name)
         self.ask(question_content)
         self.chars = characteristics
         # Set the question as askedy
@@ -2444,9 +2488,11 @@ class MyKnowledgeEngine(KnowledgeEngine):
         AS.disorder_instance << Disorder(label=MATCH.disorder_name, number_of_asked_question=MATCH.num_asked),
         TEST(lambda disorder_name: disorder_name == 'ADHD'),
         AS.question_instance << Question(id=MATCH.id, content=MATCH.question_content, disorder=MATCH.disorder_name, characteristics=MATCH.characteristics, isAsked=MATCH.isAsked),
-        TEST(lambda isAsked: not isAsked)
+        Diagnosed(isDiagnosed=MATCH.isDiagnosed),
+        TEST(lambda isAsked, isDiagnosed: not isAsked and not isDiagnosed)
     )
-    def real_sus_about_ADHD(self, disorder_instance, num_asked, question_instance, question_content, characteristics):
+    def real_sus_about_ADHD(self, disorder_instance, disorder_name, num_asked, question_instance, question_content, characteristics):
+        self.did_prob = True
         self.ask(question_content)
         self.chars = characteristics
         # Set the question as asked
@@ -2467,10 +2513,12 @@ class MyKnowledgeEngine(KnowledgeEngine):
         Characteristic(label=L('Difficulty engaging in quiet activities'), significance=GE(0.6)),
         Characteristic(label=L('Losing important items'), significance=GE(0.6)),
         Characteristic(label=L('Impulsivity'), significance=GE(0.5)),
+        AS.diagnosed_instance << Diagnosed(isDiagnosed=L(False))
     )
-    def it_is_ADHD(self):
+    def it_is_ADHD(self, diagnosed_instance):
         print('you have ADHD')
         self.result('you have ADHD')
+        self.modify(diagnosed_instance, isDiagnosed=True)
         self.halt()
     
     ##################################################################################################
@@ -2483,9 +2531,13 @@ class MyKnowledgeEngine(KnowledgeEngine):
         AS.disorder_instance << Disorder(label=MATCH.disorder_name, number_of_asked_question=MATCH.num_asked),
         TEST(lambda num_asked, disorder_name: num_asked < 5 and disorder_name == 'Autism'),
         AS.question_instance << Question(id=MATCH.id, content=MATCH.question_content, disorder=MATCH.disorder_name, characteristics=MATCH.characteristics, isAsked=MATCH.isAsked),
-        TEST(lambda isAsked: not isAsked)
+        Diagnosed(isDiagnosed=MATCH.isDiagnosed),
+        TEST(lambda isAsked, isDiagnosed: not isAsked and not isDiagnosed)
     )
-    def little_sus_about_Autism(self, disorder_instance, num_asked, question_instance, question_content, characteristics):
+    def little_sus_about_Autism(self, disorder_instance, disorder_name, num_asked, question_instance, question_content, characteristics):
+        self.did_sus = True
+        if disorder_name not in self.sus_list:
+            self.sus_list.append(disorder_name)
         self.ask(question_content)
         self.chars = characteristics
         # Set the question as askedy
@@ -2501,9 +2553,11 @@ class MyKnowledgeEngine(KnowledgeEngine):
         AS.disorder_instance << Disorder(label=MATCH.disorder_name, number_of_asked_question=MATCH.num_asked),
         TEST(lambda disorder_name: disorder_name == 'Autism'),
         AS.question_instance << Question(id=MATCH.id, content=MATCH.question_content, disorder=MATCH.disorder_name, characteristics=MATCH.characteristics, isAsked=MATCH.isAsked),
-        TEST(lambda isAsked: not isAsked)
+        Diagnosed(isDiagnosed=MATCH.isDiagnosed),
+        TEST(lambda isAsked, isDiagnosed: not isAsked and not isDiagnosed)
     )
-    def real_sus_about_Autism(self, disorder_instance, num_asked, question_instance, question_content, characteristics):
+    def real_sus_about_Autism(self, disorder_instance, disorder_name, num_asked, question_instance, question_content, characteristics):
+        self.did_prob = True
         self.ask(question_content)
         self.chars = characteristics
         # Set the question as asked
@@ -2523,10 +2577,12 @@ class MyKnowledgeEngine(KnowledgeEngine):
         Characteristic(label=L('Social relationship problems'), significance=GE(0.6)),
         Characteristic(label=L('Social relationship problems'), significance=GE(0.6)),
         Characteristic(label=L('Attachment to unusual objects or interests'), significance=GE(0.6)),
+        AS.diagnosed_instance << Diagnosed(isDiagnosed=L(False))
     )
-    def it_is_Autism(self):
+    def it_is_Autism(self, diagnosed_instance):
         print('you have Autism')
         self.result('you have Autism')
+        self.modify(diagnosed_instance, isDiagnosed=True)
         self.halt()
     
     ##################################################################################################
@@ -2539,9 +2595,13 @@ class MyKnowledgeEngine(KnowledgeEngine):
         AS.disorder_instance << Disorder(label=MATCH.disorder_name, number_of_asked_question=MATCH.num_asked),
         TEST(lambda num_asked, disorder_name: num_asked < 5 and disorder_name == 'Anxiety Disorders'),
         AS.question_instance << Question(id=MATCH.id, content=MATCH.question_content, disorder=MATCH.disorder_name, characteristics=MATCH.characteristics, isAsked=MATCH.isAsked),
-        TEST(lambda isAsked: not isAsked)
+        Diagnosed(isDiagnosed=MATCH.isDiagnosed),
+        TEST(lambda isAsked, isDiagnosed: not isAsked and not isDiagnosed)
     )
-    def little_sus_about_Anxiety_Disorders(self, disorder_instance, num_asked, question_instance, question_content, characteristics):
+    def little_sus_about_Anxiety_Disorders(self, disorder_instance, disorder_name, num_asked, question_instance, question_content, characteristics):
+        self.did_sus = True
+        if disorder_name not in self.sus_list:
+            self.sus_list.append(disorder_name)
         self.ask(question_content)
         self.chars = characteristics
         # Set the question as askedy
@@ -2558,9 +2618,11 @@ class MyKnowledgeEngine(KnowledgeEngine):
         AS.disorder_instance << Disorder(label=MATCH.disorder_name, number_of_asked_question=MATCH.num_asked),
         TEST(lambda disorder_name: disorder_name == 'Anxiety Disorders'),
         AS.question_instance << Question(id=MATCH.id, content=MATCH.question_content, disorder=MATCH.disorder_name, characteristics=MATCH.characteristics, isAsked=MATCH.isAsked),
-        TEST(lambda isAsked: not isAsked)
+        Diagnosed(isDiagnosed=MATCH.isDiagnosed),
+        TEST(lambda isAsked, isDiagnosed: not isAsked and not isDiagnosed)
     )
-    def real_sus_about_Anxiety_Disorders(self, disorder_instance, num_asked, question_instance, question_content, characteristics):
+    def real_sus_about_Anxiety_Disorders(self, disorder_instance, disorder_name, num_asked, question_instance, question_content, characteristics):
+        self.did_prob = True
         self.ask(question_content)
         self.chars = characteristics
         # Set the question as asked
@@ -2578,10 +2640,12 @@ class MyKnowledgeEngine(KnowledgeEngine):
         Characteristic(label=L('Irritability'), significance=GE(0.55)),
         Characteristic(label=L('Difficulty concentrating'), significance=GE(0.6)),
         Characteristic(label=L('Sleep disturbances'), significance=GE(0.6)),
+        AS.diagnosed_instance << Diagnosed(isDiagnosed=L(False))
     )
-    def it_is_Anxiety_Disorders(self):
+    def it_is_Anxiety_Disorders(self, diagnosed_instance):
         print('you have Anxiety Disorders')
         self.result('you have Anxiety Disorders')
+        self.mpdify(diagnosed_instance, isDiagnosed=True)
         self.halt()
     
     ##################################################################################################
@@ -2595,9 +2659,13 @@ class MyKnowledgeEngine(KnowledgeEngine):
         AS.disorder_instance << Disorder(label=MATCH.disorder_name, number_of_asked_question=MATCH.num_asked),
         TEST(lambda num_asked, disorder_name: num_asked < 5 and disorder_name == 'OCD'),
         AS.question_instance << Question(id=MATCH.id, content=MATCH.question_content, disorder=MATCH.disorder_name, characteristics=MATCH.characteristics, isAsked=MATCH.isAsked),
-        TEST(lambda isAsked: not isAsked)
+        Diagnosed(isDiagnosed=MATCH.isDiagnosed),
+        TEST(lambda isAsked, isDiagnosed: not isAsked and not isDiagnosed)
     )
-    def little_sus_about_OCD(self, disorder_instance, num_asked, question_instance, question_content, characteristics):
+    def little_sus_about_OCD(self, disorder_instance, disorder_name, num_asked, question_instance, question_content, characteristics):
+        self.did_sus = True
+        if disorder_name not in self.sus_list:
+            self.sus_list.append(disorder_name)
         self.ask(question_content)
         self.chars = characteristics
         # Set the question as askedy
@@ -2613,9 +2681,11 @@ class MyKnowledgeEngine(KnowledgeEngine):
         AS.disorder_instance << Disorder(label=MATCH.disorder_name, number_of_asked_question=MATCH.num_asked),
         TEST(lambda disorder_name: disorder_name == 'OCD'),
         AS.question_instance << Question(id=MATCH.id, content=MATCH.question_content, disorder=MATCH.disorder_name, characteristics=MATCH.characteristics, isAsked=MATCH.isAsked),
-        TEST(lambda isAsked: not isAsked)
+        Diagnosed(isDiagnosed=MATCH.isDiagnosed),
+        TEST(lambda isAsked, isDiagnosed: not isAsked and not isDiagnosed)
     )
-    def real_sus_about_OCD(self, disorder_instance, num_asked, question_instance, question_content, characteristics):
+    def real_sus_about_OCD(self, disorder_instance, disorder_name, num_asked, question_instance, question_content, characteristics):
+        self.did_prob = True
         self.ask(question_content)
         self.chars = characteristics
         # Set the question as asked
@@ -2628,10 +2698,12 @@ class MyKnowledgeEngine(KnowledgeEngine):
         Characteristic(label=L('Compulsions'), significance=GE(0.55)),
         Characteristic(label=L('Avoidance of situations that trigger obsessions and compulsions'), significance=GE(0.6)),
         Characteristic(label=L('Life problems'), significance=GE(0.55)),
+        AS.diagnosed_instance << Diagnosed(isDiagnosed=L(False))
     )
-    def it_is_OCD(self):
+    def it_is_OCD(self, diagnosed_instance):
         print('you have OCD')
         self.result('you have OCD')
+        self.modify(diagnosed_instance, isDiagnosed=True)
         self.halt()
 
     ##################################################################################################
@@ -2644,9 +2716,13 @@ class MyKnowledgeEngine(KnowledgeEngine):
         AS.disorder_instance << Disorder(label=MATCH.disorder_name, number_of_asked_question=MATCH.num_asked),
         TEST(lambda num_asked, disorder_name: num_asked < 5 and disorder_name == 'Somatic Disorders'),
         AS.question_instance << Question(id=MATCH.id, content=MATCH.question_content, disorder=MATCH.disorder_name, characteristics=MATCH.characteristics, isAsked=MATCH.isAsked),
-        TEST(lambda isAsked: not isAsked)
+        Diagnosed(isDiagnosed=MATCH.isDiagnosed),
+        TEST(lambda isAsked, isDiagnosed: not isAsked and not isDiagnosed)
     )
-    def little_sus_about_Somatic_Disorders(self, disorder_instance, num_asked, question_instance, question_content, characteristics):
+    def little_sus_about_Somatic_Disorders(self, disorder_instance, disorder_name, num_asked, question_instance, question_content, characteristics):
+        self.did_sus = True
+        if disorder_name not in self.sus_list:
+            self.sus_list.append(disorder_name)
         self.ask(question_content)
         self.chars = characteristics
         # Set the question as askedy
@@ -2663,9 +2739,11 @@ class MyKnowledgeEngine(KnowledgeEngine):
         AS.disorder_instance << Disorder(label=MATCH.disorder_name, number_of_asked_question=MATCH.num_asked),
         TEST(lambda disorder_name: disorder_name == 'Somatic Disorders'),
         AS.question_instance << Question(id=MATCH.id, content=MATCH.question_content, disorder=MATCH.disorder_name, characteristics=MATCH.characteristics, isAsked=MATCH.isAsked),
-        TEST(lambda isAsked: not isAsked)
+        Diagnosed(isDiagnosed=MATCH.isDiagnosed),
+        TEST(lambda isAsked, isDiagnosed: not isAsked and not isDiagnosed)
     )
-    def real_sus_about_Somatic_Disorders(self, disorder_instance, num_asked, question_instance, question_content, characteristics):
+    def real_sus_about_Somatic_Disorders(self, disorder_instance, disorder_name, num_asked, question_instance, question_content, characteristics):
+        self.did_prob = True
         self.ask(question_content)
         self.chars = characteristics
         # Set the question as asked
@@ -2679,10 +2757,12 @@ class MyKnowledgeEngine(KnowledgeEngine):
         Characteristic(label=L('Frequent doctor visits'), significance=GE(0.6)),
         Characteristic(label=L('Physical symptoms'), significance=GE(0.6)),
         Characteristic(label=L('Life problems'), significance=GE(0.6)),
+        AS.diagnosed_instance << Diagnosed(isDiagnosed=L(False))
     )
-    def it_is_Somatic_Disorders(self):
+    def it_is_Somatic_Disorders(self, diagnosed_instance):
         print('you have Somatic Disorders')
         self.result('you have Somatic Disorders')
+        self.modify(diagnosed_instance, isDiagnosed=True)
         self.halt()
 
     ##################################################################################################
@@ -2696,9 +2776,13 @@ class MyKnowledgeEngine(KnowledgeEngine):
         AS.disorder_instance << Disorder(label=MATCH.disorder_name, number_of_asked_question=MATCH.num_asked),
         TEST(lambda num_asked, disorder_name: num_asked < 5 and disorder_name == 'Feeding Disorders'),
         AS.question_instance << Question(id=MATCH.id, content=MATCH.question_content, disorder=MATCH.disorder_name, characteristics=MATCH.characteristics, isAsked=MATCH.isAsked),
-        TEST(lambda isAsked: not isAsked)
+        Diagnosed(isDiagnosed=MATCH.isDiagnosed),
+        TEST(lambda isAsked, isDiagnosed: not isAsked and not isDiagnosed)
     )
-    def little_sus_about_Feeding_Disorders(self, disorder_instance, num_asked, question_instance, question_content, characteristics):
+    def little_sus_about_Feeding_Disorders(self, disorder_instance, disorder_name, num_asked, question_instance, question_content, characteristics):
+        self.did_sus = True
+        if disorder_name not in self.sus_list:
+            self.sus_list.append(disorder_name)
         self.ask(question_content)
         self.chars = characteristics
         # Set the question as askedy
@@ -2715,9 +2799,11 @@ class MyKnowledgeEngine(KnowledgeEngine):
         AS.disorder_instance << Disorder(label=MATCH.disorder_name, number_of_asked_question=MATCH.num_asked),
         TEST(lambda disorder_name: disorder_name == 'Feeding Disorders'),
         AS.question_instance << Question(id=MATCH.id, content=MATCH.question_content, disorder=MATCH.disorder_name, characteristics=MATCH.characteristics, isAsked=MATCH.isAsked),
-        TEST(lambda isAsked: not isAsked)
+        Diagnosed(isDiagnosed=MATCH.isDiagnosed),
+        TEST(lambda isAsked, isDiagnosed: not isAsked and not isDiagnosed)
     )
-    def real_sus_about_Feeding_Disorders(self, disorder_instance, num_asked, question_instance, question_content, characteristics):
+    def real_sus_about_Feeding_Disorders(self, disorder_instance, disorder_name, num_asked, question_instance, question_content, characteristics):
+        self.did_prob = True
         self.ask(question_content)
         self.chars = characteristics
         # Set the question as asked
@@ -2732,10 +2818,12 @@ class MyKnowledgeEngine(KnowledgeEngine):
         Characteristic(label=L('Life problems'), significance=GE(0.6)),
         Characteristic(label=L('Avoidance or attraction to food based on appearance, smell, taste, and temperature'), significance=GE(0.6)),
         Characteristic(label=L('Fear of choking or vomiting'), significance=GE(0.6)),
+        AS.diagnosed_instance << Diagnosed(isDiagnosed=L(False))
     )
-    def it_is_Feeding_Disorders(self):
+    def it_is_Feeding_Disorders(self, diagnosed_instance):
         print('you have Feeding Disorders')
         self.result('you have Feeding Disorders')
+        self.modify(diagnosed_instance, isDiagnosed=True)
         self.halt()
 
     ##################################################################################################
@@ -2750,9 +2838,13 @@ class MyKnowledgeEngine(KnowledgeEngine):
         AS.disorder_instance << Disorder(label=MATCH.disorder_name, number_of_asked_question=MATCH.num_asked),
         TEST(lambda num_asked, disorder_name: num_asked < 5 and disorder_name == 'Disruptive, Impulse-Control, and Conduct Disorders'),
         AS.question_instance << Question(id=MATCH.id, content=MATCH.question_content, disorder=MATCH.disorder_name, characteristics=MATCH.characteristics, isAsked=MATCH.isAsked),
-        TEST(lambda isAsked: not isAsked)
+        Diagnosed(isDiagnosed=MATCH.isDiagnosed),
+        TEST(lambda isAsked, isDiagnosed: not isAsked and not isDiagnosed)
     )
-    def little_sus_about_Disruptive_Impulse_Control_and_Conduct_Disorders(self, disorder_instance, num_asked, question_instance, question_content, characteristics):
+    def little_sus_about_Disruptive_Impulse_Control_and_Conduct_Disorders(self, disorder_instance, disorder_name, num_asked, question_instance, question_content, characteristics):
+        self.did_sus = True
+        if disorder_name not in self.sus_list:
+            self.sus_list.append(disorder_name)
         self.ask(question_content)
         self.chars = characteristics
         # Set the question as askedy
@@ -2771,9 +2863,11 @@ class MyKnowledgeEngine(KnowledgeEngine):
         AS.disorder_instance << Disorder(label=MATCH.disorder_name, number_of_asked_question=MATCH.num_asked),
         TEST(lambda disorder_name: disorder_name == 'Disruptive, Impulse-Control, and Conduct Disorders'),
         AS.question_instance << Question(id=MATCH.id, content=MATCH.question_content, disorder=MATCH.disorder_name, characteristics=MATCH.characteristics, isAsked=MATCH.isAsked),
-        TEST(lambda isAsked: not isAsked)
+        Diagnosed(isDiagnosed=MATCH.isDiagnosed),
+        TEST(lambda isAsked, isDiagnosed: not isAsked and not isDiagnosed)
     )
-    def real_sus_about_Disruptive_Impulse_Control_and_Conduct_Disorders(self, disorder_instance, num_asked, question_instance, question_content, characteristics):
+    def real_sus_about_Disruptive_Impulse_Control_and_Conduct_Disorders(self, disorder_instance, disorder_name, num_asked, question_instance, question_content, characteristics):
+        self.did_prob = True
         self.ask(question_content)
         self.chars = characteristics
         # Set the question as asked
@@ -2792,10 +2886,12 @@ class MyKnowledgeEngine(KnowledgeEngine):
         Characteristic(label=L('Easily annoyed'), significance=GE(0.6)),
         Characteristic(label=L('Engaging in fire-setting or theft to relieve internal feelings'), significance=GE(0.6)),
         Characteristic(label=L('Feeling misunderstood'), significance=GE(0.6)),
+        AS.diagnosed_instance << Diagnosed(isDiagnosed=L(False))
     )
-    def it_is_Disruptive_Impulse_Control_and_Conduct_Disorders(self):
+    def it_is_Disruptive_Impulse_Control_and_Conduct_Disorders(self, diagnosed_instance):
         print('you have Disruptive, Impulse-Control, and Conduct Disorders')
         self.result('you have Disruptive, Impulse-Control, and Conduct Disorders')
+        self.modify(diagnosed_instance, isDiagnosed=True)
         self.halt()
 
     ##################################################################################################
@@ -2811,9 +2907,13 @@ class MyKnowledgeEngine(KnowledgeEngine):
         AS.disorder_instance << Disorder(label=MATCH.disorder_name, number_of_asked_question=MATCH.num_asked),
         TEST(lambda num_asked, disorder_name: num_asked < 5 and disorder_name == 'ASPD (Antisocial Personality Disorder)'),
         AS.question_instance << Question(id=MATCH.id, content=MATCH.question_content, disorder=MATCH.disorder_name, characteristics=MATCH.characteristics, isAsked=MATCH.isAsked),
-        TEST(lambda isAsked: not isAsked)
+        Diagnosed(isDiagnosed=MATCH.isDiagnosed),
+        TEST(lambda isAsked, isDiagnosed: not isAsked and not isDiagnosed)
     )
-    def little_sus_about_ASPD(self, disorder_instance, num_asked, question_instance, question_content, characteristics):
+    def little_sus_about_ASPD(self, disorder_instance, disorder_name, num_asked, question_instance, question_content, characteristics):
+        self.did_sus = True
+        if disorder_name not in self.sus_list:
+            self.sus_list.append(disorder_name)
         self.ask(question_content)
         self.chars = characteristics
         # Set the question as askedy
@@ -2831,9 +2931,11 @@ class MyKnowledgeEngine(KnowledgeEngine):
         AS.disorder_instance << Disorder(label=MATCH.disorder_name, number_of_asked_question=MATCH.num_asked),
         TEST(lambda disorder_name: disorder_name == 'ASPD (Antisocial Personality Disorder)'),
         AS.question_instance << Question(id=MATCH.id, content=MATCH.question_content, disorder=MATCH.disorder_name, characteristics=MATCH.characteristics, isAsked=MATCH.isAsked),
-        TEST(lambda isAsked: not isAsked)
+        Diagnosed(isDiagnosed=MATCH.isDiagnosed),
+        TEST(lambda isAsked, isDiagnosed: not isAsked and not isDiagnosed)
     )
-    def real_sus_about_ASPD(self, disorder_instance, num_asked, question_instance, question_content, characteristics):
+    def real_sus_about_ASPD(self, disorder_instance, disorder_name, num_asked, question_instance, question_content, characteristics):
+        self.did_prob = True
         self.ask(question_content)
         self.chars = characteristics
         # Set the question as asked
@@ -2849,10 +2951,12 @@ class MyKnowledgeEngine(KnowledgeEngine):
         Characteristic(label=L('Reckless disregard for safety of self or others'), significance=GE(0.6)),
         Characteristic(label=L('History of irresponsibility'), significance=GE(0.6)),
         Characteristic(label=L('Lack of guilt'), significance=GE(0.6)),
+        AS.diagnosed_instance << Diagnosed(isDiagnosed=L(False))
     )
-    def it_is_ASPD(self):
+    def it_is_ASPD(self, diagnosed_instance):
         print('you have ASPD (Antisocial Personality Disorder)')
         self.result('you have ASPD (Antisocial Personality Disorder)')
+        self.modify(diagnosed_instance, isDiagnosed=True)
         self.halt()
 
     ##################################################################################################
@@ -2866,9 +2970,13 @@ class MyKnowledgeEngine(KnowledgeEngine):
         AS.disorder_instance << Disorder(label=MATCH.disorder_name, number_of_asked_question=MATCH.num_asked),
         TEST(lambda num_asked, disorder_name: num_asked < 5 and disorder_name == 'Borderline Personality Disorder'),
         AS.question_instance << Question(id=MATCH.id, content=MATCH.question_content, disorder=MATCH.disorder_name, characteristics=MATCH.characteristics, isAsked=MATCH.isAsked),
-        TEST(lambda isAsked: not isAsked)
+        Diagnosed(isDiagnosed=MATCH.isDiagnosed),
+        TEST(lambda isAsked, isDiagnosed: not isAsked and not isDiagnosed)
     )
-    def little_sus_about_Borderline_Personality_Disorder(self, disorder_instance, num_asked, question_instance, question_content, characteristics):
+    def little_sus_about_Borderline_Personality_Disorder(self, disorder_instance, disorder_name, num_asked, question_instance, question_content, characteristics):
+        self.did_sus = True
+        if disorder_name not in self.sus_list:
+            self.sus_list.append(disorder_name)
         self.ask(question_content)
         self.chars = characteristics
         # Set the question as askedy
@@ -2888,9 +2996,11 @@ class MyKnowledgeEngine(KnowledgeEngine):
         AS.disorder_instance << Disorder(label=MATCH.disorder_name, number_of_asked_question=MATCH.num_asked),
         TEST(lambda disorder_name: disorder_name == 'Borderline Personality Disorder'),
         AS.question_instance << Question(id=MATCH.id, content=MATCH.question_content, disorder=MATCH.disorder_name, characteristics=MATCH.characteristics, isAsked=MATCH.isAsked),
-        TEST(lambda isAsked: not isAsked)
+        Diagnosed(isDiagnosed=MATCH.isDiagnosed),
+        TEST(lambda isAsked, isDiagnosed: not isAsked and not isDiagnosed)
     )
-    def real_sus_about_Borderline_Personality_Disorder(self, disorder_instance, num_asked, question_instance, question_content, characteristics):
+    def real_sus_about_Borderline_Personality_Disorder(self, disorder_instance, disorder_name, num_asked, question_instance, question_content, characteristics):
+        self.did_prob = True
         self.ask(question_content)
         self.chars = characteristics
         # Set the question as asked
@@ -2909,10 +3019,12 @@ class MyKnowledgeEngine(KnowledgeEngine):
         Characteristic(label=L('Impulsive decision-making'), significance=GE(0.65)),
         Characteristic(label=L('Mood swings'), significance=GE(0.6)),
         Characteristic(label=L('Episodes of intense anger'), significance=GE(0.65)),
+        AS.diagnosed_instance << Diagnosed(isDiagnosed=L(False))
     )
-    def it_is_Borderline_Personality_Disorder(self):
+    def it_is_Borderline_Personality_Disorder(self, diagnosed_instance):
         print('you have Borderline Personality Disorder')
         self.result('you have Borderline Personality Disorder')
+        self.modify(diagnosed_instance, isDiagnosed=True)
         self.halt()
     
     ##################################################################################################
@@ -2926,9 +3038,13 @@ class MyKnowledgeEngine(KnowledgeEngine):
         AS.disorder_instance << Disorder(label=MATCH.disorder_name, number_of_asked_question=MATCH.num_asked),
         TEST(lambda num_asked, disorder_name: num_asked < 5 and disorder_name == 'Narcissistic Personality Disorder'),
         AS.question_instance << Question(id=MATCH.id, content=MATCH.question_content, disorder=MATCH.disorder_name, characteristics=MATCH.characteristics, isAsked=MATCH.isAsked),
-        TEST(lambda isAsked: not isAsked)
+        Diagnosed(isDiagnosed=MATCH.isDiagnosed),
+        TEST(lambda isAsked, isDiagnosed: not isAsked and not isDiagnosed)
     )
-    def little_sus_about_Narcissistic_Personality_Disorder(self, disorder_instance, num_asked, question_instance, question_content, characteristics):
+    def little_sus_about_Narcissistic_Personality_Disorder(self, disorder_instance, disorder_name, num_asked, question_instance, question_content, characteristics):
+        self.did_sus = True
+        if disorder_name not in self.sus_list:
+            self.sus_list.append(disorder_name)
         self.ask(question_content)
         self.chars = characteristics
         # Set the question as askedy
@@ -2945,9 +3061,11 @@ class MyKnowledgeEngine(KnowledgeEngine):
         AS.disorder_instance << Disorder(label=MATCH.disorder_name, number_of_asked_question=MATCH.num_asked),
         TEST(lambda disorder_name: disorder_name == 'Narcissistic Personality Disorder'),
         AS.question_instance << Question(id=MATCH.id, content=MATCH.question_content, disorder=MATCH.disorder_name, characteristics=MATCH.characteristics, isAsked=MATCH.isAsked),
-        TEST(lambda isAsked: not isAsked)
+        Diagnosed(isDiagnosed=MATCH.isDiagnosed),
+        TEST(lambda isAsked, isDiagnosed: not isAsked and not isDiagnosed)
     )
-    def real_sus_about_Narcissistic_Personality_Disorder(self, disorder_instance, num_asked, question_instance, question_content, characteristics):
+    def real_sus_about_Narcissistic_Personality_Disorder(self, disorder_instance, disorder_name, num_asked, question_instance, question_content, characteristics):
+        self.did_prob = True
         self.ask(question_content)
         self.chars = characteristics
         # Set the question as asked
@@ -2964,11 +3082,29 @@ class MyKnowledgeEngine(KnowledgeEngine):
         Characteristic(label=L('Manipulative behaviors'), significance=GE(0.65)),
         Characteristic(label=L('Lack of empathy'), significance=GE(0.65)),
         Characteristic(label=L('Sense of entitlement'), significance=GE(0.55)),
+        AS.diagnosed_instance << Diagnosed(isDiagnosed=L(False))
     )
-    def it_is_Narcissistic_Personality_Disorder(self):
+    def it_is_Narcissistic_Personality_Disorder(self, diagnosed_instance):
         print('you have Narcissistic Personality Disorder')
         self.result('you have Narcissistic Personality Disorder')
+        self.modify(diagnosed_instance, isDiagnosed=True)
         self.halt()
+
+    ##################################################################################################
+    #                                           Healthy                                              #
+    ##################################################################################################
+    @Rule(
+        Diagnosed(isDiagnosed=L(False))
+    )
+    def health(self):
+        if not self.did_sus:
+            print('Healthy')
+            self.result('Healthy')
+            self.halt()
+        elif self.did_sus and not self.did_prob:
+            print(f'Healthy {self.sus_list}')
+            self.result(f'Healthy but a little sus about: \n {self.sus_list}')
+            self.halt()
 
 engine = MyKnowledgeEngine()
 engine.reset()
